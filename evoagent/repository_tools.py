@@ -49,6 +49,12 @@ class RepositoryToolSuite:
         self.parsed = parsed
         self.ledger = ledger
         self.test_command = test_command
+        # A review runs several roles and revision rounds against the same
+        # checkout. Cache the expensive facts so a repeated tool call cannot
+        # multiply wall-clock time (a scanner can legitimately take 90s).
+        self._files_cache: Optional[List[str]] = None
+        self._scanners_cache: Optional[dict] = None
+        self._checks_cache: Dict[str, dict] = {}
 
     @property
     def repository_available(self) -> bool:
@@ -66,6 +72,8 @@ class RepositoryToolSuite:
     def _files(self) -> Iterable[str]:
         if not self.root:
             return []
+        if self._files_cache is not None:
+            return self._files_cache
         values = []
         for current, dirs, files in os.walk(self.root):
             dirs[:] = [item for item in dirs if item not in SKIP_DIRS]
@@ -77,7 +85,9 @@ class RepositoryToolSuite:
                 except OSError:
                     continue
                 if len(values) >= 20_000:
+                    self._files_cache = values
                     return values
+        self._files_cache = values
         return values
 
     def list_repository(self, limit: int = 500) -> dict:
@@ -265,6 +275,8 @@ class RepositoryToolSuite:
         """Run installed, fixed-command analyzers. User input never becomes a command."""
         if not self.root:
             return _evidence("run_scanners", {"available": False, "runs": []})
+        if self._scanners_cache is not None:
+            return self._scanners_cache
         specs = [
             ("semgrep", ["semgrep", "scan", "--config", "auto", "--json", "--quiet", "."]),
             ("bandit", ["bandit", "-r", ".", "-f", "json", "-q"]),
@@ -291,13 +303,16 @@ class RepositoryToolSuite:
                 })
             except subprocess.TimeoutExpired:
                 runs.append({"name": name, "available": True, "timed_out": True})
-        return _evidence("run_scanners", {"available": True, "runs": runs})
+        self._scanners_cache = _evidence("run_scanners", {"available": True, "runs": runs})
+        return self._scanners_cache
 
     def run_repository_checks(self, kind: str = "compile") -> dict:
         """Run fixed checks in an isolated repository copy with a restricted environment."""
         kind = str(kind).strip().lower()
         if kind not in {"compile", "tests"}:
             raise ValueError("kind must be compile or tests")
+        if kind in self._checks_cache:
+            return self._checks_cache[kind]
         if not self.root:
             return _evidence("test", {"available": False, "kind": kind})
         if kind == "tests" and not self.test_command:
@@ -340,7 +355,9 @@ class RepositoryToolSuite:
                     "isolation": "temporary-copy+restricted-environment",
                     "network_disabled": False, "passed": False, "timed_out": True,
                 }
-        return _evidence("test", payload)
+        evidence = _evidence("test", payload)
+        self._checks_cache[kind] = evidence
+        return evidence
 
     def registry(self, role: str, allowed: Optional[Set[str]] = None) -> ToolRegistry:
         specs = {

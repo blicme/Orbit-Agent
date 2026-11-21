@@ -63,6 +63,30 @@ class JsonChatRetryTests(unittest.TestCase):
         self.assertEqual(2, len(calls))
 
 
+class JsonChatRepairTests(unittest.TestCase):
+    def test_unparseable_content_is_repaired_with_one_follow_up_call(self):
+        contents = ["not json at all", '{"action": "final", "findings": []}']
+        payloads = []
+
+        def fake_urlopen(request, timeout):
+            payloads.append(json.loads(request.data.decode("utf-8")))
+            return _FakeResponse(json.dumps({
+                "choices": [{"message": {"content": contents[len(payloads) - 1]}}],
+                "usage": {"prompt_tokens": 10, "completion_tokens": 5},
+            }))
+
+        client = JsonChatClient(
+            "http://example.test/v1", "key", "model",
+            retries=2, retry_delay_seconds=0,
+        )
+        with patch("evoagent.llm.urllib.request.urlopen", side_effect=fake_urlopen):
+            result = client.complete_json("lead", "system", "user")
+
+        self.assertEqual({"action": "final", "findings": []}, result)
+        self.assertEqual(2, len(payloads))
+        self.assertEqual("assistant", payloads[1]["messages"][-2]["role"])
+
+
 class _FakeResponse:
     def __init__(self, body):
         self._body = body

@@ -9,6 +9,7 @@ from abc import ABC, abstractmethod
 from typing import Any, Dict, List, Optional
 
 from .diff_parser import ParsedDiff
+from .llm import decode_json_object
 from .models import Finding, Severity
 
 
@@ -236,9 +237,7 @@ class OpenAICompatibleReviewer(Reviewer):
                 with urllib.request.urlopen(request, timeout=self.timeout) as response:
                     body = json.loads(response.read().decode("utf-8"))
                 content = body["choices"][0]["message"]["content"]
-                result = json.loads(content)
-                if not isinstance(result, dict):
-                    raise ValueError("model JSON root is not an object")
+                result = decode_json_object(content)
             except urllib.error.HTTPError as exc:
                 detail = exc.read(1000).decode("utf-8", errors="replace")
                 message = "%s API returned HTTP %d: %s" % (

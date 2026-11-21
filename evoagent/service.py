@@ -180,6 +180,10 @@ class ReviewService:
             self.memory,
             self.context_manager,
             self._active_agent_skills,
+            max_revision_rounds=self.settings.max_revision_rounds,
+            review_effort=self.settings.review_effort,
+            fast_path_max_added_lines=self.settings.fast_path_max_added_lines,
+            fast_path_max_files=self.settings.fast_path_max_files,
         )
 
     def _run_review(

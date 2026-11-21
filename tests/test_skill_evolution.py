@@ -207,6 +207,7 @@ class SkillEvolutionTests(unittest.TestCase):
                 llm_base_url="", llm_api_key="", llm_model="",
                 github_webhook_secret="", github_token="", auto_post_review=False,
                 skills_dir=skills_dir, eval_min_holdout_cases=0,
+                review_effort="full",
             )
             service = ReviewService(settings)
             service.chat_client = self.client

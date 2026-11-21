@@ -39,7 +39,7 @@ class ReviewHarness:
 
     def __init__(
         self, store: TaskStore, reviewer: Reviewer, max_steps: int = 8,
-        timeout_seconds: int = 120, node_retries: int = 2, observability=None,
+        timeout_seconds: int = 120, node_retries: int = 1, observability=None,
     ):
         self.store = store
         self.reviewer = reviewer

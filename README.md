@@ -113,6 +113,23 @@ EVOAGENT_LLM_PROVIDER=deepseek
 EVOAGENT_DEEPSEEK_API_KEY=你的真实APIKey
 ```
 
+## 评审深度与耗时
+
+`agentic` 模式默认按改动规模自动选择评审深度，避免小改动走完整的多 Agent 流程：
+
+| 配置 | 默认值 | 说明 |
+| --- | --- | --- |
+| `EVOAGENT_REVIEW_EFFORT` | `auto` | `auto`：小 diff 单次模型调用；`full`：始终运行 Lead/Worker/Critic 全流程；`fast`：始终单次调用 |
+| `EVOAGENT_FAST_PATH_MAX_ADDED_LINES` | `40` | `auto` 模式下触发快速评审的最大新增行数 |
+| `EVOAGENT_FAST_PATH_MAX_FILES` | `3` | `auto` 模式下触发快速评审的最大文件数 |
+| `EVOAGENT_MAX_REVISION_ROUNDS` | `1` | Lead 在 Worker 结果后请求返工的最大轮数，`0` 表示关闭返工 |
+| `EVOAGENT_AGENT_TOKEN_BUDGET` | `8000` | 单个角色的输入 + 输出 token 预算 |
+| `EVOAGENT_AGENT_TIME_BUDGET_SECONDS` | `60` | 单个角色的墙钟预算 |
+
+快速评审只调用一次模型，并与本地规则扫描结果合并；确定性规则已经命中的行不会重复上报，因此仍能保留原有的高危发现。需要完整的交叉验证（例如大改动、需要返工或盲审）时设置 `EVOAGENT_REVIEW_EFFORT=full`。本机实测同一个 3 行改动：`auto` 约 3 秒、1 次模型调用；`full` 约 1～2 分钟、十余次模型调用。
+
+单角色预算耗尽时，角色会改为一次“收尾调用”：不再使用工具，只要求模型基于已获得的证据返回最终 JSON，而不是直接失败并触发返工。模型输出的 JSON 缺失 `action` 字段、带有无关的 `type` 字段、被代码围栏包裹或中途截断时会被容错解析；仍然无法解析时只做一次定向修复调用，而不是重复同一请求。仓库工具（`run_scanners`、`run_repository_checks`）的结果在一次评审内会缓存，多个角色和返工轮次不会重复执行同一耗时的子进程。
+
 ## GitHub Webhook
 
 项目使用“GitHub 仓库 Webhook + 公网转发 + fine-grained PAT”接收 PR 事件，不需要创建或安装 GitHub App：

@@ -18,6 +18,7 @@ def settings(path):
         max_steps=8, timeout_seconds=10, llm_base_url="", llm_api_key="", llm_model="",
         github_webhook_secret="", github_token="", auto_post_review=False,
         skills_dir="skills",
+        review_effort="full",
     )
 
 

@@ -120,6 +120,10 @@ class Settings:
     continuous_eval_seconds: int = 0
     agent_token_budget: int = 8000
     agent_time_budget_seconds: int = 60
+    review_effort: str = "auto"
+    fast_path_max_added_lines: int = 40
+    fast_path_max_files: int = 3
+    max_revision_rounds: int = 1
     agent_context_window_tokens: int = 32768
     agent_context_input_tokens: int = 20000
     context_diff_token_budget: int = 12000
@@ -220,6 +224,10 @@ class Settings:
             raise ValueError("bootstrap admin username and password must be configured together")
         if not 0.0 <= self.alert_failure_rate <= 1.0:
             raise ValueError("EVOAGENT_ALERT_FAILURE_RATE must be between 0 and 1")
+        if self.review_effort not in {"auto", "fast", "full"}:
+            raise ValueError(
+                "EVOAGENT_REVIEW_EFFORT must be auto, fast or full"
+            )
         if self.llm_input_cost_per_million < 0 or self.llm_output_cost_per_million < 0:
             raise ValueError("LLM token prices cannot be negative")
         if self.evaluation_min_public_prs < 300:
@@ -289,6 +297,12 @@ class Settings:
             ),
             agent_token_budget=_int("EVOAGENT_AGENT_TOKEN_BUDGET", 8000),
             agent_time_budget_seconds=_int("EVOAGENT_AGENT_TIME_BUDGET_SECONDS", 60),
+            review_effort=os.getenv("EVOAGENT_REVIEW_EFFORT", "auto").strip().lower(),
+            fast_path_max_added_lines=_int(
+                "EVOAGENT_FAST_PATH_MAX_ADDED_LINES", 40
+            ),
+            fast_path_max_files=_int("EVOAGENT_FAST_PATH_MAX_FILES", 3),
+            max_revision_rounds=_non_negative_int("EVOAGENT_MAX_REVISION_ROUNDS", 1),
             agent_context_window_tokens=_int(
                 "EVOAGENT_AGENT_CONTEXT_WINDOW_TOKENS", 32768
             ),
